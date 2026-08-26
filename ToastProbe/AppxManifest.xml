@@ -4,7 +4,7 @@
          xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
          xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
          IgnorableNamespaces="uap uap3 rescap">
-  <Identity Name="CodexToastMonitor" Publisher="CN=Codex Toast Monitor" Version="0.2.1.0" />
+  <Identity Name="CodexToastMonitor" Publisher="CN=Codex Toast Monitor" Version="0.2.2.0" />
   <Properties>
     <DisplayName>Codex Toast Monitor</DisplayName>
     <PublisherDisplayName>Codex Toast Monitor</PublisherDisplayName>
