@@ -30,6 +30,7 @@ internal sealed class MainForm : Form
     private readonly SemaphoreSlim _captureGate = new(1, 1);
     private readonly SemaphoreSlim _logGate = new(1, 1);
     private readonly CheckBox _feishuEnabled = new() { AutoSize = true, Text = "启用飞书推送" };
+    private readonly CheckBox _startWithWindows = new() { AutoSize = true, Text = "开机自动启动" };
     private readonly TextBox _webhookUrl = new();
     private readonly TextBox _secret = new() { UseSystemPasswordChar = true };
     private readonly Button _saveConfig = new() { Text = "保存配置", AutoSize = true };
@@ -41,9 +42,11 @@ internal sealed class MainForm : Form
     private readonly Button _refreshLogs = new() { Text = "刷新日志", AutoSize = true };
     private readonly Button _cleanLogs = new() { Text = "清理 30 天前", AutoSize = true };
     private readonly Button _deleteLogs = new() { Text = "删除全部日志", AutoSize = true };
+    private readonly NotifyIcon _trayIcon;
     private IReadOnlyList<LogEntry> _logEntries = [];
     private bool _subscribed;
     private bool _allowExit;
+    private bool _isInTray;
 
     public MainForm()
     {
@@ -56,12 +59,27 @@ internal sealed class MainForm : Form
         StartPosition = FormStartPosition.CenterScreen;
         ShowInTaskbar = true;
         MinimizeBox = true;
-        Icon = new Icon(Path.Combine(AppContext.BaseDirectory, "Assets", "CodexToastMonitor.ico"));
+        var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "CodexToastMonitor.ico");
+        Icon = new Icon(iconPath);
+
+        var trayMenu = new ContextMenuStrip();
+        trayMenu.Items.Add("打开", null, (_, _) => RestoreFromTray());
+        trayMenu.Items.Add(new ToolStripSeparator());
+        trayMenu.Items.Add("退出", null, (_, _) => ExitApplication());
+        _trayIcon = new NotifyIcon
+        {
+            Icon = new Icon(iconPath),
+            Text = "Codex Toast Monitor",
+            ContextMenuStrip = trayMenu,
+            Visible = false
+        };
+        _trayIcon.DoubleClick += (_, _) => RestoreFromTray();
 
         _webhookUrl.PlaceholderText = "https://open.feishu.cn/open-apis/bot/v2/hook/...";
         _webhookUrl.Dock = DockStyle.Fill;
         _secret.Dock = DockStyle.Fill;
         _feishuEnabled.Checked = _config.Feishu.Enabled;
+        _startWithWindows.Checked = StartupManager.IsEnabled();
         _webhookUrl.Text = _config.Feishu.WebhookUrl;
         _secret.Text = _config.Feishu.Secret;
         _saveConfig.Click += (_, _) => SaveConfig();
@@ -98,20 +116,22 @@ internal sealed class MainForm : Form
 
         Shown += async (_, _) => await StartAsync();
         FormClosing += OnFormClosing;
+        Resize += OnResize;
         _pollTimer.Tick += async (_, _) => await CaptureAddedAsync();
     }
 
     private TabPage BuildMonitorPage()
     {
         var page = new TabPage("运行状态") { Padding = new Padding(12) };
-        var settings = new GroupBox { Text = "飞书推送设置", Dock = DockStyle.Top, Height = 170 };
-        var table = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(10), ColumnCount = 3, RowCount = 4 };
+        var settings = new GroupBox { Text = "程序设置", Dock = DockStyle.Top, Height = 205 };
+        var table = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(10), ColumnCount = 3, RowCount = 5 };
         table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 105));
         table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 105));
         table.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
         table.RowStyles.Add(new RowStyle(SizeType.Absolute, 35));
         table.RowStyles.Add(new RowStyle(SizeType.Absolute, 35));
+        table.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
         table.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         table.Controls.Add(_feishuEnabled, 0, 0);
         table.SetColumnSpan(_feishuEnabled, 3);
@@ -120,8 +140,10 @@ internal sealed class MainForm : Form
         table.Controls.Add(_saveConfig, 2, 1);
         table.Controls.Add(CreateRightLabel("签名 Secret"), 0, 2);
         table.Controls.Add(_secret, 1, 2);
+        table.Controls.Add(_startWithWindows, 0, 3);
+        table.SetColumnSpan(_startWithWindows, 3);
         var note = new Label { Text = "仅 HTTPS 地址会启用网络发送；Secret 只保存在本机配置文件中。保存后立即应用。程序只记录 ChatGPT/Codex 通知。", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true };
-        table.Controls.Add(note, 0, 3);
+        table.Controls.Add(note, 0, 4);
         table.SetColumnSpan(note, 3);
         settings.Controls.Add(table);
 
@@ -174,8 +196,9 @@ internal sealed class MainForm : Form
         try
         {
             _config.Save(_configPath);
+            StartupManager.SetEnabled(_startWithWindows.Checked);
             _deliveryQueue.Start();
-            _status.Text = $"飞书配置已保存并应用；{GetFeishuStatus()}";
+            _status.Text = $"配置已保存并应用；{GetFeishuStatus()}";
         }
         catch (Exception ex)
         {
@@ -374,7 +397,7 @@ internal sealed class MainForm : Form
 
         var choice = MessageBox.Show(
             this,
-            "请选择关闭方式：\r\n\r\n是：彻底退出程序\r\n否：最小化到任务栏\r\n取消：保持窗口打开",
+            "请选择关闭方式：\r\n\r\n是：彻底退出程序\r\n否：最小化到系统托盘\r\n取消：保持窗口打开",
             "关闭 Codex Toast Monitor",
             MessageBoxButtons.YesNoCancel,
             MessageBoxIcon.Question,
@@ -395,11 +418,44 @@ internal sealed class MainForm : Form
             {
                 if (!IsDisposed)
                 {
-                    ShowInTaskbar = true;
                     WindowState = FormWindowState.Minimized;
                 }
             }));
         }
+    }
+
+    private void OnResize(object? sender, EventArgs args)
+    {
+        if (WindowState == FormWindowState.Minimized && !_isInTray && !_allowExit)
+        {
+            MinimizeToTray();
+        }
+    }
+
+    private void MinimizeToTray()
+    {
+        _isInTray = true;
+        ShowInTaskbar = false;
+        Hide();
+        _trayIcon.Visible = true;
+    }
+
+    private void RestoreFromTray()
+    {
+        if (IsDisposed) return;
+        _trayIcon.Visible = false;
+        ShowInTaskbar = true;
+        Show();
+        WindowState = FormWindowState.Normal;
+        Activate();
+        _isInTray = false;
+    }
+
+    private void ExitApplication()
+    {
+        _allowExit = true;
+        _trayIcon.Visible = false;
+        Close();
     }
 
     private void Stop()
@@ -408,5 +464,7 @@ internal sealed class MainForm : Form
         _pollTimer.Stop();
         Application.ThreadException -= OnThreadException;
         _deliveryQueue.Dispose();
+        _trayIcon.Visible = false;
+        _trayIcon.Dispose();
     }
 }
