@@ -1,3 +1,5 @@
+using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 
 namespace CodexToastProbe;
@@ -11,6 +13,19 @@ internal sealed record LogEntry(
 
 internal static class LogStore
 {
+    private static readonly JsonSerializerOptions DisplayJsonOptions = new()
+    {
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        WriteIndented = true
+    };
+    private static readonly JsonSerializerOptions StorageJsonOptions = new()
+    {
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        WriteIndented = false
+    };
+
+    public static string SerializeRecord(object record) => JsonSerializer.Serialize(record, StorageJsonOptions);
+
     public static IReadOnlyList<LogEntry> Read(string path)
     {
         if (!File.Exists(path))
@@ -19,17 +34,11 @@ internal static class LogStore
         }
 
         var entries = new List<LogEntry>();
-        foreach (var line in File.ReadLines(path))
+        foreach (var record in ReadRecords(path))
         {
-            if (string.IsNullOrWhiteSpace(line))
-            {
-                continue;
-            }
-
             try
             {
-                using var document = JsonDocument.Parse(line);
-                var root = document.RootElement;
+                var root = record.Root;
                 DateTimeOffset? observedAt = null;
                 if (root.TryGetProperty("observedAtUtc", out var timestamp) &&
                     timestamp.ValueKind == JsonValueKind.String &&
@@ -44,11 +53,11 @@ internal static class LogStore
                 var id = root.TryGetProperty("id", out var idValue)
                     ? idValue.ToString()
                     : string.Empty;
-                entries.Add(new LogEntry(observedAt, kind, id, BuildSummary(root), line));
+                entries.Add(new LogEntry(observedAt, kind, id, BuildSummary(root), JsonSerializer.Serialize(root, DisplayJsonOptions)));
             }
             catch
             {
-                entries.Add(new LogEntry(null, "invalid", string.Empty, "无法解析的日志记录", line));
+                entries.Add(new LogEntry(null, "invalid", string.Empty, "无法解析的日志记录", record.Raw));
             }
         }
 
@@ -64,15 +73,15 @@ internal static class LogStore
 
         var kept = new List<string>();
         var removed = 0;
-        foreach (var line in File.ReadLines(path))
+        foreach (var record in ReadRecords(path))
         {
-            if (TryGetObservedAt(line, out var observedAt) && observedAt < cutoff)
+            if (record.Root.TryGetProperty("observedAtUtc", out var value) && value.TryGetDateTimeOffset(out var observedAt) && observedAt < cutoff)
             {
                 removed++;
             }
             else
             {
-                kept.Add(line);
+                kept.Add(record.Storage);
             }
         }
 
@@ -93,19 +102,37 @@ internal static class LogStore
         }
     }
 
-    private static bool TryGetObservedAt(string line, out DateTimeOffset observedAt)
+    private static IReadOnlyList<ParsedRecord> ReadRecords(string path)
     {
-        observedAt = default;
+        var records = new List<ParsedRecord>();
+        var bytes = Encoding.UTF8.GetBytes(File.ReadAllText(path));
+        var readerState = new JsonReaderState(new JsonReaderOptions { AllowMultipleValues = true });
+        var reader = new Utf8JsonReader(bytes, isFinalBlock: true, readerState);
         try
         {
-            using var document = JsonDocument.Parse(line);
-            return document.RootElement.TryGetProperty("observedAtUtc", out var value) &&
-                value.TryGetDateTimeOffset(out observedAt);
+            while (reader.Read())
+            {
+                if (reader.TokenType != JsonTokenType.StartObject)
+                {
+                    continue;
+                }
+
+                using var document = JsonDocument.ParseValue(ref reader);
+                var root = document.RootElement.Clone();
+                records.Add(new ParsedRecord(root, JsonSerializer.Serialize(root, StorageJsonOptions)));
+            }
         }
         catch
         {
-            return false;
+            records.Add(new ParsedRecord(JsonDocument.Parse("{\"kind\":\"invalid\",\"message\":\"无法解析的日志内容\"}").RootElement.Clone(), Encoding.UTF8.GetString(bytes)));
         }
+
+        return records;
+    }
+
+    private sealed record ParsedRecord(JsonElement Root, string Storage)
+    {
+        public string Raw => Storage;
     }
 
     private static void ReplaceFile(string path, IReadOnlyList<string> lines)

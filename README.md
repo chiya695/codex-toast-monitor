@@ -65,7 +65,11 @@ dotnet build .\ToastProbe\ToastProbe.csproj
 dotnet publish .\ToastProbe\ToastProbe.csproj -c Release --self-contained false -o .\ToastProbe\publish
 ```
 
-要读取 Windows 通知，程序必须具有包身份，并在清单中声明 `userNotificationListener` 能力。进行本地开发时，需要按照 Windows 通知监听文档注册经过检查的 MSIX 包；开发者模式只用于本地测试。仓库不会提交生成的安装包目录和证书文件。
+要读取 Windows 通知，程序必须具有包身份，并在清单中声明 `userNotificationListener` 能力。开发者模式下可以直接使用 `Add-AppxPackage -Register` 注册发布目录，不需要购买证书，也不需要修改 ChatGPT/Codex 的安装文件。仓库不会提交本机运行数据和私钥。
+
+## 开发者模式安装
+
+发布页提供免安装压缩包。开启 Windows 开发者模式后，解压压缩包并运行其中的 `安装-开发者模式.ps1`，脚本会为当前用户注册程序包身份并启动程序。卸载时运行 `卸载-开发者模式.ps1`；卸载不会删除本地日志和飞书配置。
 
 ## 飞书配置
 
@@ -107,7 +111,7 @@ dotnet publish .\ToastProbe\ToastProbe.csproj -c Release --self-contained false 
 
 ## 当前版本
 
-当前初版已完成并验证以下流程：
+当前版本已完成并验证以下流程：
 
 - 连续多个 ChatGPT 任务的通知捕获；
 - 程序重启后的历史通知去重；
@@ -116,7 +120,7 @@ dotnet publish .\ToastProbe\ToastProbe.csproj -c Release --self-contained false 
 - 日志查看、自动保留和手动删除；
 - 自适应设置界面和应用图标。
 
-当前版本标签为 `v0.2.0`。
+当前版本标签为 `v0.2.1`。
 
 ## 后续计划
 

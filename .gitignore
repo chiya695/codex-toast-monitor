@@ -8,6 +8,7 @@
 *.suo
 *.pdb
 *.msix
+*.zip
 *.cer
 
 # Runtime data must stay on the local machine.

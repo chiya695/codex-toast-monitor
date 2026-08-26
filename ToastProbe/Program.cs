@@ -309,7 +309,7 @@ internal sealed class MainForm : Form
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_eventLogPath)!);
-            await File.AppendAllTextAsync(_eventLogPath, JsonSerializer.Serialize(record) + Environment.NewLine, Encoding.UTF8);
+            await File.AppendAllTextAsync(_eventLogPath, LogStore.SerializeRecord(record) + Environment.NewLine, Encoding.UTF8);
         }
         finally { _logGate.Release(); }
     }
