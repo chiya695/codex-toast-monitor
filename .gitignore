@@ -1,0 +1,16 @@
+.tools/
+.vs/
+**/bin/
+**/obj/
+**/publish/
+**/package/
+*.user
+*.suo
+*.pdb
+*.msix
+*.cer
+
+# Runtime data must stay on the local machine.
+toast-events.jsonl
+feishu-outbox/
+config.json

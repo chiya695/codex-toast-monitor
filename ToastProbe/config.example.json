@@ -1,0 +1,7 @@
+{
+  "Feishu": {
+    "Enabled": false,
+    "WebhookUrl": "",
+    "Secret": ""
+  }
+}

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+         xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+         xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
+         xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+         IgnorableNamespaces="uap uap3 rescap">
+  <Identity Name="CodexToastMonitor" Publisher="CN=Codex Toast Monitor" Version="0.2.0.0" />
+  <Properties>
+    <DisplayName>Codex Toast Monitor</DisplayName>
+    <PublisherDisplayName>Codex Toast Monitor</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+  <Resources>
+    <Resource Language="zh-CN" />
+  </Resources>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26200.0" />
+  </Dependencies>
+  <Capabilities>
+    <uap3:Capability Name="userNotificationListener" />
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+  <Applications>
+    <Application Id="App" Executable="CodexToastProbe.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements AppListEntry="none" DisplayName="Codex Toast Monitor" Description="将 ChatGPT Windows 通知转发到飞书" BackgroundColor="transparent" Square150x150Logo="Assets\Square150x150Logo.png" Square44x44Logo="Assets\Square44x44Logo.png" />
+    </Application>
+  </Applications>
+</Package>
