@@ -43,6 +43,7 @@ internal sealed class MainForm : Form
     private readonly Button _deleteLogs = new() { Text = "删除全部日志", AutoSize = true };
     private IReadOnlyList<LogEntry> _logEntries = [];
     private bool _subscribed;
+    private bool _allowExit;
 
     public MainForm()
     {
@@ -53,6 +54,8 @@ internal sealed class MainForm : Form
         Height = 650;
         MinimumSize = new Size(760, 520);
         StartPosition = FormStartPosition.CenterScreen;
+        ShowInTaskbar = true;
+        MinimizeBox = true;
         Icon = new Icon(Path.Combine(AppContext.BaseDirectory, "Assets", "CodexToastMonitor.ico"));
 
         _webhookUrl.PlaceholderText = "https://open.feishu.cn/open-apis/bot/v2/hook/...";
@@ -94,7 +97,7 @@ internal sealed class MainForm : Form
         Controls.Add(tabs);
 
         Shown += async (_, _) => await StartAsync();
-        FormClosing += (_, _) => Stop();
+        FormClosing += OnFormClosing;
         _pollTimer.Tick += async (_, _) => await CaptureAddedAsync();
     }
 
@@ -360,6 +363,35 @@ internal sealed class MainForm : Form
         _status.Text = $"程序错误：{args.Exception.Message}";
         _ = AppendRecordAsync(new { observedAtUtc = DateTimeOffset.UtcNow, kind = "ui-error", error = args.Exception.ToString() });
         MessageBox.Show(this, args.Exception.Message, "Codex Toast Monitor 错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+    }
+
+    private void OnFormClosing(object? sender, FormClosingEventArgs args)
+    {
+        if (_allowExit)
+        {
+            return;
+        }
+
+        var choice = MessageBox.Show(
+            this,
+            "请选择关闭方式：\r\n\r\n是：彻底退出程序\r\n否：最小化到任务栏\r\n取消：保持窗口打开",
+            "关闭 Codex Toast Monitor",
+            MessageBoxButtons.YesNoCancel,
+            MessageBoxIcon.Question,
+            MessageBoxDefaultButton.Button3);
+
+        if (choice == DialogResult.Yes)
+        {
+            _allowExit = true;
+            Stop();
+            return;
+        }
+
+        args.Cancel = true;
+        if (choice == DialogResult.No)
+        {
+            WindowState = FormWindowState.Minimized;
+        }
     }
 
     private void Stop()
