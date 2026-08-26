@@ -390,7 +390,15 @@ internal sealed class MainForm : Form
         args.Cancel = true;
         if (choice == DialogResult.No)
         {
-            WindowState = FormWindowState.Minimized;
+            // Let the canceled close message finish before changing the window state.
+            BeginInvoke((MethodInvoker)(() =>
+            {
+                if (!IsDisposed)
+                {
+                    ShowInTaskbar = true;
+                    WindowState = FormWindowState.Minimized;
+                }
+            }));
         }
     }
 
