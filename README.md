@@ -122,7 +122,7 @@ dotnet publish .\ToastProbe\ToastProbe.csproj -c Release --self-contained false 
 - 日志查看、自动保留和手动删除；
 - 自适应设置界面和应用图标。
 
-当前版本标签为 `v0.2.2`。
+当前版本标签为 `v0.2.3`。
 
 ## 后续计划
 

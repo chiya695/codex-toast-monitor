@@ -220,6 +220,7 @@ internal sealed class MainForm : Form
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_eventLogPath)!);
+            await SynchronizeStartupSettingAsync();
             _deliveryQueue.Start();
             await ApplyLogRetentionAsync();
             var access = _listener.GetAccessStatus();
@@ -254,6 +255,25 @@ internal sealed class MainForm : Form
             _status.Text = $"启动失败：{ex.GetType().Name} {ex.Message}";
             await AppendRecordAsync(new { observedAtUtc = DateTimeOffset.UtcNow, kind = "probe-error", error = ex.ToString() });
             ReloadLogs();
+        }
+    }
+
+    private async Task SynchronizeStartupSettingAsync()
+    {
+        try
+        {
+            _config.StartWithWindows = _startWithWindows.Checked;
+            _config.Save(_configPath);
+            StartupManager.SetEnabled(_config.StartWithWindows);
+        }
+        catch (Exception ex)
+        {
+            await AppendRecordAsync(new
+            {
+                observedAtUtc = DateTimeOffset.UtcNow,
+                kind = "startup-sync-error",
+                error = ex.ToString()
+            });
         }
     }
 

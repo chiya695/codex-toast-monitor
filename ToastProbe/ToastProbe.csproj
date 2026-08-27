@@ -12,7 +12,9 @@
     <ApplicationIcon>Assets\CodexToastMonitor.ico</ApplicationIcon>
     <Product>Codex Toast Monitor</Product>
     <Description>将 ChatGPT Windows 通知安全转发到飞书</Description>
-    <Version>0.2.2</Version>
+    <Version>0.2.3</Version>
+    <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
+    <DebugSymbols Condition="'$(Configuration)' == 'Release'">false</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Microsoft.Windows.SDK.NET">
