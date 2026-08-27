@@ -5,6 +5,7 @@ namespace CodexToastProbe;
 internal sealed class ProbeConfig
 {
     public FeishuConfig Feishu { get; set; } = new();
+    public bool StartWithWindows { get; set; }
 
     public static ProbeConfig Load(string path)
     {

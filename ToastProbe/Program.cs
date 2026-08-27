@@ -79,10 +79,17 @@ internal sealed class MainForm : Form
         _webhookUrl.Dock = DockStyle.Fill;
         _secret.Dock = DockStyle.Fill;
         _feishuEnabled.Checked = _config.Feishu.Enabled;
-        _startWithWindows.Checked = StartupManager.IsEnabled();
+        _startWithWindows.Checked = _config.StartWithWindows || StartupManager.IsEnabled();
         _webhookUrl.Text = _config.Feishu.WebhookUrl;
         _secret.Text = _config.Feishu.Secret;
         _saveConfig.Click += (_, _) => SaveConfig();
+        _startWithWindows.CheckedChanged += (_, _) =>
+        {
+            if (IsHandleCreated)
+            {
+                SaveConfig();
+            }
+        };
 
         _logGrid.Dock = DockStyle.Fill;
         _logGrid.ReadOnly = true;
@@ -193,6 +200,7 @@ internal sealed class MainForm : Form
         _config.Feishu.Enabled = _feishuEnabled.Checked;
         _config.Feishu.WebhookUrl = _webhookUrl.Text.Trim();
         _config.Feishu.Secret = _secret.Text;
+        _config.StartWithWindows = _startWithWindows.Checked;
         try
         {
             _config.Save(_configPath);

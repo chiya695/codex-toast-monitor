@@ -24,10 +24,15 @@ internal static class StartupManager
 
         if (enabled)
         {
-            var executablePath = Environment.ProcessPath;
+            var executablePath = Path.Combine(AppContext.BaseDirectory, "CodexToastProbe.exe");
             if (string.IsNullOrWhiteSpace(executablePath))
             {
                 throw new InvalidOperationException("无法确定程序启动路径。");
+            }
+
+            if (!File.Exists(executablePath))
+            {
+                throw new FileNotFoundException("找不到程序启动文件。", executablePath);
             }
 
             key.SetValue(ValueName, $"\"{executablePath}\"", RegistryValueKind.String);
