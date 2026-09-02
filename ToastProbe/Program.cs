@@ -423,6 +423,14 @@ internal sealed class MainForm : Form
             return;
         }
 
+        // Windows does not provide a user who can answer a modal prompt during shutdown.
+        if (args.CloseReason is CloseReason.WindowsShutDown or CloseReason.TaskManagerClosing)
+        {
+            _allowExit = true;
+            Stop();
+            return;
+        }
+
         var choice = MessageBox.Show(
             this,
             "请选择关闭方式：\r\n\r\n是：彻底退出程序\r\n否：最小化到系统托盘\r\n取消：保持窗口打开",
